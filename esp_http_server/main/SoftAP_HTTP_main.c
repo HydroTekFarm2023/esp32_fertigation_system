@@ -17,7 +17,7 @@
 #include "esp_eth.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
-
+#include "cJSON.h"
 /*
  * Just change the below entries to strings with
  * the config you want - ie #define EXAMPLE_WIFI_SSID "mywifissid"
@@ -31,6 +31,48 @@
  * handlers for the web server.
  */
 static const char *TAG = "WIFI_AP_HTTP_SERVER";
+
+static void json_parser(const char *buffer)
+{
+   const cJSON *ssid;
+   const cJSON *password;
+   const cJSON *device_id;
+   const cJSON *time;
+   const cJSON *broker_ip;
+
+   cJSON *root = cJSON_Parse(buffer);
+
+   if (root == NULL) {
+      ESP_LOGI(TAG, "Fail to deserialize Json");
+      return;
+   }
+
+   ssid = cJSON_GetObjectItemCaseSensitive(root, "ssid");
+   if (cJSON_IsString(ssid) && (ssid->valuestring != NULL))
+   {
+      ESP_LOGI(TAG, "ssid: \"%s\"\n", ssid->valuestring);
+   }
+   password = cJSON_GetObjectItemCaseSensitive(root, "password");
+   if (cJSON_IsString(password) && (password->valuestring != NULL))
+   {
+      ESP_LOGI(TAG, "password: \"%s\"\n", password->valuestring);
+   }
+   device_id = cJSON_GetObjectItemCaseSensitive(root, "device_id");
+   if (cJSON_IsString(device_id) && (device_id->valuestring != NULL))
+   {
+      ESP_LOGI(TAG, "device_id: \"%s\"\n", device_id->valuestring);
+   }
+   time = cJSON_GetObjectItemCaseSensitive(root, "time");
+   if (cJSON_IsString(time) && (time->valuestring != NULL))
+   {
+      ESP_LOGI(TAG, "time: \"%s\"\n", time->valuestring);
+   }
+   broker_ip = cJSON_GetObjectItemCaseSensitive(root, "broker_ip");
+   if (cJSON_IsString(broker_ip) && (broker_ip->valuestring != NULL))
+   {
+      ESP_LOGI(TAG, "broker_ip: \"%s\"\n", broker_ip->valuestring);
+   }
+}
 
 /* An HTTP POST handler */
 static esp_err_t echo_post_handler(httpd_req_t *req)
@@ -55,6 +97,7 @@ static esp_err_t echo_post_handler(httpd_req_t *req)
       ESP_LOGI(TAG, "=========== RECEIVED DATA ==========");
       ESP_LOGI(TAG, "%.*s", ret, buf);
       ESP_LOGI(TAG, "====================================");
+      json_parser(buf);
    }
 
    // End response
@@ -182,4 +225,12 @@ void app_main(void)
 
    /* Start the server for the first time */
    server = start_webserver();
+
+   /*
+   json_parser("{\"ssid\": \"samplessid\",\
+         \"password\": \"samplepassword\",\
+         \"device_id\": \"55af3hfs\",\
+         \"time\": \"06:41:48\",\
+         \"broker_ip\": \"163.56.78.1\"}");
+   */
 }
