@@ -19,17 +19,11 @@
 
 /* GPIO2 is used to enter into deep sleep.
    User can change this macro as per application requirement */
-#define GPIO_INPUT_IO         4
+#define GPIO_INPUT_IO         2
 
 #define GPIO_INPUT_PIN_SEL    (1ULL<<GPIO_INPUT_IO)
 
 #define INTR_FLAG_DEFAULT     0
-
-/* GPIO2 is used to wakeup from deep sleep.
-User can change this macro as per application requirement */
-#define ext_wakeup_pin        GPIO_INPUT_IO
-
-#define ext_wakeup_pin_mask   (1ULL << ext_wakeup_pin)
 
 #define TIMER_DIVIDER         16  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
@@ -40,10 +34,11 @@ User can change this macro as per application requirement */
  */
 void IRAM_ATTR timer_group0_isr(void *para)
 {
+   ets_printf("Device will go into deep sleep mode \n");
    // clear timer interrupt
-   timer_group_intr_clr_in_isr(TIMER_GROUP_0, TIMER_0);
+   //timer_group_intr_clr_in_isr(TIMER_GROUP_0, TIMER_0);
    // configure GPIO for wakeup device from sleep mode
-   esp_sleep_enable_ext1_wakeup(ext_wakeup_pin_mask, ESP_EXT1_WAKEUP_ANY_HIGH);
+   esp_sleep_enable_ext0_wakeup(GPIO_INPUT_IO, 1);
    // start sleep mode
    esp_deep_sleep_start();
 }
@@ -86,7 +81,7 @@ void app_main(void)
 	gpio_config_t gpio_conf;
 
 	//interrupt of rising edge
-   gpio_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
+	gpio_conf.intr_type = GPIO_PIN_INTR_POSEDGE;
 	//bit mask of the pins, used GPIO2 here.
 	gpio_conf.pin_bit_mask = GPIO_INPUT_PIN_SEL;
 	//set as input mode
@@ -96,22 +91,17 @@ void app_main(void)
 	gpio_config(&gpio_conf);
 
 	//install gpio isr service
-   gpio_install_isr_service(INTR_FLAG_DEFAULT);
+	gpio_install_isr_service(INTR_FLAG_DEFAULT);
 
 	//isr handler for specific gpio pin (GPIO2)
-   gpio_isr_handler_add(GPIO_INPUT_IO, gpio_isr_handler, (void*) GPIO_INPUT_IO);
+ 	gpio_isr_handler_add(GPIO_INPUT_IO, gpio_isr_handler, (void*) GPIO_INPUT_IO);
 
-   tg0_timer_init(TIMER_0, TIMER_INTERVAL0_SEC);
+	tg0_timer_init(TIMER_0, TIMER_INTERVAL0_SEC);
 
 	/* Detect whether boot is caused because of deep sleep reset or not */
-	if((esp_sleep_get_wakeup_cause()) == ESP_SLEEP_WAKEUP_EXT1)
+	if((esp_sleep_get_wakeup_cause()) == ESP_SLEEP_WAKEUP_EXT0)
 	{
-		uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
-        if (wakeup_pin_mask != 0)
-		{
-			int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-            printf("Wake up from GPIO %d\n", pin);
-		}
+		printf("Wake up from deep Sleep \n");
 	}
 	else
 	{
